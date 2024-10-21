@@ -3,10 +3,27 @@ ARG NGROK_TOKEN
 ARG REGION=ap
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt upgrade -y && apt install -y \
-    ssh wget unzip vim curl python3
+    ssh wget unzip vim curl python3 git build-essential
 RUN wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz -O /ngrok-v3-stable-linux-amd64.tgz \
     && cd / && tar -xzf ngrok-v3-stable-linux-amd64.tgz \
     && chmod +x ngrok
+
+# Install Neovim
+RUN curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim.appimage \
+    && chmod u+x nvim.appimage \
+    && mkdir -p /opt/nvim \
+    && mv nvim.appimage /opt/nvim/nvim \
+    && echo 'export PATH="$PATH:/opt/nvim/"' >> /etc/profile
+
+# Fallback installation in case the AppImage doesn't work
+RUN /opt/nvim/nvim --appimage-extract || \
+    (mv squashfs-root / && \
+    ln -s /squashfs-root/AppRun /usr/bin/nvim)
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 RUN mkdir /run/sshd \
     && echo "/ngrok tcp --authtoken ${NGROK_TOKEN} --region ${REGION} 22 &" >>/openssh.sh \
     && echo "sleep 5" >> /openssh.sh \
